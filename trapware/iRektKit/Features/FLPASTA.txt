@@ -1,0 +1,252 @@
+
+Save New Duplicate & Edit Just Text Twitter
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+101
+102
+103
+104
+105
+106
+107
+108
+109
+110
+111
+112
+113
+114
+115
+116
+117
+118
+119
+120
+121
+122
+123
+124
+125
+#include "fakelag.h"
+
+bool Settings::FakeLag::enabled = false;
+int Settings::FakeLag::value = 9;
+bool Settings::FakeLag::adaptive = false;
+
+static int ticks = 0;
+int ticksMax = 16;
+
+/* | AIMTUX FAKELAG |
+void FakeLag::CreateMove(CUserCmd* cmd)
+{
+	if (!Settings::FakeLag::enabled)
+		return;
+
+	C_BasePlayer* localplayer = (C_BasePlayer*) entityList->GetClientEntity(engine->GetLocalPlayer());
+	if (!localplayer || !localplayer->GetAlive())
+		return;
+
+	if (localplayer->GetFlags() & FL_ONGROUND && Settings::FakeLag::adaptive)
+		return;
+
+	if (cmd->buttons & IN_ATTACK)
+	{
+		CreateMove::sendPacket = true;
+		return;
+	}
+
+	if (ticks >= ticksMax)
+	{
+		CreateMove::sendPacket = true;
+		ticks = 0;
+	}
+	else
+	{
+		if (Settings::FakeLag::adaptive)
+		{
+			int packetsToChoke;
+			if (localplayer->GetVelocity().Length() > 0.f)
+			{
+				packetsToChoke = (int)((64.f / globalVars->interval_per_tick) / localplayer->GetVelocity().Length()) + 1;
+				if (packetsToChoke >= 15)
+					packetsToChoke = 14;
+				if (packetsToChoke < Settings::FakeLag::value)
+					packetsToChoke = Settings::FakeLag::value;
+			}
+			else
+				packetsToChoke = 0;
+
+			CreateMove::sendPacket = ticks < 16 - packetsToChoke;
+		}
+		else
+			CreateMove::sendPacket = ticks < 16 - Settings::FakeLag::value;
+	}
+
+	ticks++;
+}
+*/
+void FakeLag::CreateMove(CUserCmd* cmd)
+{
+    if (!Settings::FakeLag::enabled)
+	    return;
+    
+    C_BasePlayer* localplayer = (C_BasePlayer*) entityList->GetClientEntity(engine->GetLocalPlayer());
+	if (!localplayer || !localplayer->GetAlive())
+	    return;
+
+	if (localplayer->GetFlags() & FL_ONGROUND && Settings::FakeLag::adaptive)
+		return;
+
+    if (cmd->buttons & IN_ATTACK)
+	{
+		CreateMove::sendPacket = true;
+		return;
+	}
+	if (ticks >= ticksMax)
+	{
+		CreateMove::sendPacket = true;
+		ticks = 0;
+	}
+
+    if (ticks <= 0)
+	{
+		CreateMove::sendPacket = true;
+
+		Vector vel = localplayer->GetVelocity();
+		vel.z = 0.0f;
+
+		int f = ( int ) ( ceilf( ( 64.0f / 0.0078125f ) / vel.Length() ) );
+
+		if ( f < 1 )
+			f = 1;
+
+		if ( f > 13 )
+			f = 13;
+
+		static bool diff = false;
+		diff = !diff;
+
+		ticks = f - (diff ? 1 : 0);
+	}
+	else
+	{
+		if (Settings::FakeLag::adaptive)
+		{
+			int packetsToChoke;
+			if (localplayer->GetVelocity().Length() > 0.f)
+			{
+				packetsToChoke = (int)((64.f / globalVars->interval_per_tick) / localplayer->GetVelocity().Length()) + 1;
+				if (packetsToChoke >= 15)
+					packetsToChoke = 14;
+				if (packetsToChoke < Settings::FakeLag::value)
+					packetsToChoke = Settings::FakeLag::value;
+			}
+			else
+				packetsToChoke = 0;
+
+			CreateMove::sendPacket = ticks < 16 - packetsToChoke;
+		}
+		else
+			CreateMove::sendPacket = ticks < 16 - Settings::FakeLag::value;
+	}
+
+	ticks++;
+}

@@ -1,0 +1,249 @@
+#include "SkinChanger.h"
+#include "Cheat.h"
+
+struct PlayerAA
+{
+	CBaseEntity* player;
+	QAngle angle;
+
+	PlayerAA(CBaseEntity* player, QAngle angle)
+	{
+		this->player = player;
+		this->angle = angle;
+	}
+};
+std::vector<int> CPlayerList::Players = {};
+std::vector<PlayerAA> player_data;
+std::vector< CPlayer > Players;
+RecvVarProxyFn oFixY;
+RecvVarProxyFn oFixX;
+void FixAngel2(CBaseEntity* pEnt, float* pfPitch, float* pfYaw) {
+	int index = pEnt->GetIndex();
+	if (pfYaw) {
+		static float SpinYaw[65], TwitchTime[65];
+		static bool Twitch[65];
+		SpinYaw[index] += I::Globals->frametime * 135.f;
+		if (SpinYaw[index] > 360.f) SpinYaw[index] = 0.f;
+
+		TwitchTime[index] -= I::Globals->frametime;
+		if (TwitchTime[index] <= 0.f) {
+			Twitch[index] = !Twitch[index];
+			TwitchTime[index] = 0.02f;
+		}
+
+		*pfYaw = SpinYaw[index] - (Twitch[index] ? 180.f : 0.f);
+	}
+}
+
+void FixAngel(CBaseEntity* pEnt, float* pfPitch, float* pfYaw) {
+	Correction_Struct CorrectionsPlayers[65];
+
+	int index = pEnt->GetIndex();
+
+	if (pfPitch) {
+		*pfPitch = 89.f;
+	}
+
+	if (pfYaw) {
+		*pfYaw -= 180.f;
+	}
+}
+
+float DoYawAAA(CBaseEntity* pEnt) {
+	Correction_Struct CorrectionsPlayers[65];
+	int index = pEnt->GetIndex();
+
+
+	float yaw = pEnt->GetHeadRotation()->y;
+	if (yaw != 0.f)
+		yaw -= .087936f;
+
+	static bool tempBools[65];
+	static bool flip[65];
+	static bool twitch[65];
+	static int angletwitch[65];
+
+	twitch[index] = tempBools[index];
+	tempBools[index] = yaw >= 180.f && yaw <= 360.f;
+	if (yaw == 0.f) { // angel ghetto fix
+		FixAngel(pEnt, 0, &yaw);
+	}
+	else if (twitch && yaw >= 0.f && yaw <= 180.f) yaw += 359.f;
+
+	return yaw;
+}
+//* HOOKING RECVPROP FOR SPEED //*
+void FixX(const CRecvProxyData* pData, void* pStruct, void* pOut)
+{
+	oFixX;
+	if ((Vars.Ragebot.Antiaim.Resolver || Vars.Ragebot.ResolverHelper) && I::Engine->IsInGame())
+	{
+		CBaseEntity* Entity = I::ClientEntList->GetClientEntity(((CBaseEntity*)(pStruct))->GetIndex());
+
+		if (!Entity
+			|| Entity == G::LocalPlayer
+			|| Entity->GetTeam() == G::LocalPlayer->GetTeam()
+			|| Entity->GetHealth() <= 0
+			|| Entity->GetDormant()
+			|| Entity->GetImmune())
+			return;
+
+		while (Entity->GetHeadRotation()->x > 180.0f)
+			Entity->GetHeadRotation()->x -= 360.0f;
+		while (Entity->GetHeadRotation()->x < -180.0f)
+			Entity->GetHeadRotation()->x += 360.0f;
+
+		if ((!Vars.Players.Resolveall) && (std::find(CPlayerList::Players.begin(), CPlayerList::Players.end(), Entity->GetUserID()) == CPlayerList::Players.end()))
+			return;
+		if (Vars.Players.AAA.PAngle[((CBaseEntity*)(pStruct))->GetIndex()] > 0/*&& (std::find(CPlayerList::FixPitch.begin(), CPlayerList::FixPitch.end(), entityInformation.userid) == CPlayerList::FixPitch.end())*/)
+		{
+			if (Vars.Players.AAA.PAngle[((CBaseEntity*)(pStruct))->GetIndex()] == 1)
+				Entity->GetHeadRotation()->x = 89.f;
+			else if (Vars.Players.AAA.PAngle[((CBaseEntity*)(pStruct))->GetIndex()] == 2)
+				Entity->GetHeadRotation()->x = -89.f;
+			else if (Vars.Players.AAA.PAngle[((CBaseEntity*)(pStruct))->GetIndex()] == 3)
+				Entity->GetHeadRotation()->x = 0.f;
+			else if (Vars.Players.AAA.PAngle[((CBaseEntity*)(pStruct))->GetIndex()] == 4)
+				Entity->GetHeadRotation()->x = 70.f;
+		}
+		QAngle eyeAngles = *Entity->GetHeadRotation();
+
+		if (Vars.Ragebot.ResolverHelper > 0)
+		{
+				if (Entity->GetHeadRotation()->x < -179.648438f || Entity->GetHeadRotation()->x > 179.648438f)
+					Entity->GetHeadRotation()->x = -10.0f;
+
+				if (Entity->GetHeadRotation()->x <= -88.945313f && Entity->GetHeadRotation()->x >= -179.648438f)
+					Entity->GetHeadRotation()->x = -89.0f;
+
+				if (Entity->GetHeadRotation()->x >= 88.945313f && Entity->GetHeadRotation()->x <= 179.648438f)
+					Entity->GetHeadRotation()->x = 89.0f;
+
+			if (Vars.Ragebot.ResolverHelper > 1 && Vars.Players.AAA.PAngle[((CBaseEntity*)(pStruct))->GetIndex()] == 0)
+			{
+				if (eyeAngles.x < -179.f) eyeAngles.x += 360.f;
+				else if (eyeAngles.x > 90.0 || eyeAngles.x < -90.0) eyeAngles.x = 89.f;
+				else if (eyeAngles.x > 89.0 && eyeAngles.x < 91.0) eyeAngles.x -= 90.f;
+				else if (eyeAngles.x > 179.0 && eyeAngles.x < 181.0) eyeAngles.x -= 180;
+				else if (eyeAngles.x > -179.0 && eyeAngles.x < -181.0) eyeAngles.x += 180;
+				else if (fabs(eyeAngles.x) == 0) eyeAngles.x = std::copysign(89.0f, eyeAngles.x);
+			}
+		}
+	}
+}
+
+
+void FixY(const CRecvProxyData* pData, void* pStruct, void* pOut)
+{		
+	oFixX;
+	CBaseEntity* Entity = I::ClientEntList->GetClientEntity(((CBaseEntity*)(pStruct))->GetIndex());
+	if ((Vars.Ragebot.Antiaim.Resolver || Vars.Ragebot.ResolverHelper) && I::Engine->IsInGame())
+	{
+
+		if (!Entity
+			|| Entity == G::LocalPlayer
+			|| Entity->GetTeam() == G::LocalPlayer->GetTeam()
+			|| Entity->GetHealth() <= 0
+			|| Entity->GetDormant()
+			|| Entity->GetImmune())
+			return;
+
+		while (Entity->GetHeadRotation()->y > 180.0f)
+			Entity->GetHeadRotation()->y -= 360.0f;
+		while (Entity->GetHeadRotation()->y < -180.0f)
+			Entity->GetHeadRotation()->y += 360.0f;
+
+		if ((!Vars.Players.Resolveall) && (std::find(CPlayerList::Players.begin(), CPlayerList::Players.end(), Entity->GetUserID()) == CPlayerList::Players.end()))
+			return;
+
+		player_data.push_back(PlayerAA(Entity, *Entity->GetHeadRotation()));
+
+		if (Vars.Ragebot.Antiaim.Resolver == 1)
+			Entity->GetHeadRotation()->y = *Entity->GetLowerBodyYawTarget();
+		else if (Vars.Ragebot.Antiaim.Resolver == 2)
+			Entity->GetHeadRotation()->y = DoYawAAA(Entity);
+
+		if (Vars.Players.AAA.YAngle[((CBaseEntity*)(pStruct))->GetIndex()] > 0/*&& (std::find(CPlayerList::FixPitch.begin(), CPlayerList::FixPitch.end(), entityInformation.userid) == CPlayerList::FixPitch.end())*/)
+		{
+			if (Vars.Players.AAA.YAngle[((CBaseEntity*)(pStruct))->GetIndex()] == 1)
+				Entity->GetHeadRotation()->y = Entity->GetHeadRotation()->y - 180.f;
+			else if (Vars.Players.AAA.YAngle[((CBaseEntity*)(pStruct))->GetIndex()] == 2)
+			{
+				if (Entity->GetHeadRotation()->y > 180 && Entity->GetHeadRotation()->y < -180)
+					Entity->GetHeadRotation()->y = 90.0f;
+			}
+		}
+
+		if (Vars.Ragebot.ResolverHelper > 2)
+		{
+			/*int num = Vars.m_iBulletsFire % 5;
+			switch (num) {
+			case 0:eyeAngles.y = AimAngle.y; break;
+			case 1:eyeAngles.y - 15.f; break;
+			case 2:eyeAngles.y + 40.f; break;
+			case 3:eyeAngles.y - 40.f; break;
+			case 4:eyeAngles.y + 15.f; break;tlh
+			}*/
+
+			if (Vars.Ragebot.Antiaim.Resolver == 1)
+			{
+				if ((*Entity->GetLowerBodyYawTarget() != Entity->GetHeadRotation()->y) || (Entity->GetVelocity().Length2D() > 0.1f && Entity->GetFlags() & FL_ONGROUND))
+				{
+					Entity->GetHeadRotation()->y = Entity->GetHeadRotation()->y + U::RandomFloat(-35, 35);
+				}
+			}
+		}
+	}
+}
+
+void ApplyAAAHooks()
+{
+	ClientClass *pClass = I::Client->GetAllClasses();
+	while (pClass)
+	{
+		const char *pszName = pClass->m_pRecvTable->m_pNetTableName;
+		if (!strcmp(pszName, "DT_CSPlayer"))
+		{
+			for (int i = 0; i < pClass->m_pRecvTable->m_nProps; i++)
+			{
+				RecvProp *pProp = &(pClass->m_pRecvTable->m_pProps[i]);
+				const char *name = pProp->m_pVarName;
+
+
+				if (!strcmp(name, "m_angEyeAngles[0]"))
+				{
+					oFixX = (RecvVarProxyFn)pProp->m_ProxyFn;
+					pProp->m_ProxyFn = FixX;
+				}
+
+				//Yaw fast hook
+				if (!strcmp(name, "m_angEyeAngles[1]"))
+				{
+					oFixY = (RecvVarProxyFn)pProp->m_ProxyFn;
+					pProp->m_ProxyFn = FixY;
+				}
+			}
+		}
+		else if (!strcmp(pszName, "DT_BaseViewModel"))
+		{
+			for (int i = 0; i < pClass->m_pRecvTable->m_nProps; i++)
+			{
+				RecvProp *pProp = &(pClass->m_pRecvTable->m_pProps[i]);
+				const char *name = pProp->m_pVarName;
+
+				// Knives
+				if (!strcmp(name, "m_nModelIndex"))
+				{
+					oRecvnModelIndex = (RecvVarProxyFn)pProp->m_ProxyFn;
+					pProp->m_ProxyFn = Hooked_RecvProxy_Viewmodel;
+				}
+				if (!strcmp(name, "m_nSequence"))
+				{
+					oRecvProxySequence = (RecvVarProxyFn)pProp->m_ProxyFn;
+					pProp->m_ProxyFn = RecvProxy_Sequence;
+				}
+			}
+		}
+		pClass = pClass->m_pNext;
+	}
+}
